@@ -1,5 +1,5 @@
 from Tkinter import *
-from src.board import Grid, Score
+from src.gui.board import Grid, Score
 
 def test_gui():
     window=Tk()
