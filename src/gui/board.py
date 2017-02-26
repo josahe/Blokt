@@ -1,49 +1,117 @@
 import Tkinter as tk
 from shape import Shapes
 from random import randint
+from threading import Thread, Lock
 
+class Board(tk.Frame):
+    '''
+    This class is the board view of the game.
+    '''
 
-class Grid(tk.Frame):
+    def __init__(self, parent, number_of_players=4):
+        tk.Frame.__init__(self, parent, background="black")
+        self.parent = parent
+        self.name = 'board'
+        if (number_of_players == 4):
+            self.playarea=PlayArea(parent, rows=20, columns=20)
+        elif (number_of_players == 2):
+            self.playarea=PlayArea(parent, rows=14, columns=14)
+        else:
+            raise ValueError
+            return None
+        self.shapearea = ShapeArea(parent)
+        self.lock = Lock()
+        self.parent.bind("<Enter>", self.colour_shape_on_grid)
+        self.parent.bind("<Leave>", self.colour_shape_on_grid)
+
+    def background_tasks():
+        num_enters = 0
+        num_leaves = 0
+
+    # the callback could execute faster..
+    def colour_shape_on_grid(self, event):
+        def callback(event):
+            self.lock.acquire()
+            try: grid_info = event.widget.grid_info()
+            except AttributeError as e:
+                self.lock.release()
+                return None
+            try: frame = grid_info['in']
+            except KeyError as e:
+                self.lock.release()
+                return None
+            if (frame.name == 'playarea'):
+                for b in self.shapearea.blocks:
+                    if b.selected is True:
+                        shape_number=b.shape_number
+                (r_offset,
+                 c_offset) = self.playarea.get_grid_coordinates(event)
+                if (int(event.type) == 7): # <Enter>
+                    self.playarea.colour_squares('blue',
+                        Shapes.shape_map[shape_number],
+                        int(r_offset), int(c_offset))
+                elif (int(event.type) == 8): # <Leave>
+                    self.playarea.colour_squares('white',
+                        Shapes.shape_map[shape_number],
+                        int(r_offset), int(c_offset))
+            self.lock.release()
+        t = Thread(target=callback, args=(event,))
+        t.start()
+
+class PlayArea(tk.Frame):
     '''
     This class renders a 20x20 playing board and packs into a parent window.
     '''
 
-    colours = {'white'  : "assets/white_square_40x40.ppm",
-               'red'    : "assets/red_square_40x40.ppm",
-               'yellow' : "assets/yellow_square_40x40.ppm",
-               'green'  : "assets/green_square_40x40.ppm",
-               'blue'   : "assets/blue_square_40x40.ppm"}
-
-    def __init__(self, parent, rows=20, columns=20):
+    def __init__(self, parent, rows=20, columns=20, colour_set=Shapes.colours4,
+        pad=1):
         tk.Frame.__init__(self, parent, background="black")
-
         self.parent = parent
-        self.frame = tk.Frame(parent, background="black")
-
-        photo = tk.PhotoImage(file=Grid.colours['white'])
-
-        parent.bind("<Button-1>", self.get_grid_coordinates)
-
+        self.name = 'playarea'
+        self.colour_set = colour_set
+        photo = tk.PhotoImage(file=self.colour_set['white'])
+        self.squares = []
         for row in range(rows):
+            current_row = []
             for column in range(columns):
-                entry = tk.Label(self.frame, borderwidth=0, image=photo)
-                entry.photo = photo
-                entry.grid(row=row, column=column, sticky="NSEW",
-                    padx=1, pady=1)
-
-        self.frame.pack(side="left")
+                sqr = Square(self, image=photo, row=row, column=column)
+                sqr.photo = photo
+                sqr.grid(row=row, column=column, sticky="NSEW", padx=pad,
+                    pady=pad)
+                current_row.append(sqr)
+            self.squares.append(current_row)
+        self.pack(side="left")
+        parent.bind("<Button-1>", self.place_shape_on_grid)
 
     def colour_squares(self, colour, shape, r_offset, c_offset):
-        photo = tk.PhotoImage(file=Grid.colours[colour])
+        photo = tk.PhotoImage(file=self.colour_set[colour])
         numrows = len(shape)
         numcols = len(shape[0])
-
         for row in range(numrows):
             for column in range(numcols):
                 if (shape[row][column]):
-                    entry = tk.Label(self.frame, borderwidth=0, image=photo)
-                    entry.photo = photo
-                    entry.grid(row=row+r_offset, column=column+c_offset)
+                    try:
+                        sqr = self.squares[row+r_offset][column+c_offset]
+                        sqr.configure(image = photo)
+                        sqr.photo = photo
+                        sqr.grid(row=row+r_offset, column=column+c_offset)
+                    except IndexError as e:
+                        pass
+
+    def clear_squares(self, shape=None):
+        photo = tk.PhotoImage(file=self.colour_set['white'])
+        if shape is None:
+            numrows = 5
+            numcols = 5
+        else:
+            numrows = len(shape)
+            numcols = len(shape[0])
+        for row in range(numrows):
+            for column in range(numcols):
+                sqr = self.squares[row][column]
+                sqr.configure(image=photo)
+                sqr.photo = photo
+                sqr.grid(row=row, column=column)
 
     def get_grid_coordinates(self, event):
         try:
@@ -54,129 +122,105 @@ class Grid(tk.Frame):
         except (AttributeError, KeyError) as e:
             return None
 
+    def place_shape_on_grid(self, event):
+        (r_offset, c_offset) = self.playarea.get_grid_coordinates(event)
 
-class Score(tk.Frame):
-    '''
-    This class renders a 20x20 playing board and packs into a parent window.
-    '''
 
-    colours = {'white'  : "assets/white_square_10x10.ppm",
-               'red'    : "assets/red_square_10x10.ppm",
-               'yellow' : "assets/yellow_square_10x10.ppm",
-               'green'  : "assets/green_square_10x10.ppm",
-               'blue'   : "assets/blue_square_10x10.ppm",
-               'grey'   : "assets/grey_square_10x10.ppm"}
+class ShapeArea(tk.Frame):
+    '''
+    This class renders a 7x3 display of available shapes and packs into a parent
+    window.
+    '''
 
     def __init__(self, parent):
         tk.Frame.__init__(self, parent, background="black")
-
         self.parent = parent
-        self.frame = tk.Frame(parent, background="black", width=100, height=100)
-        self.sub_frame_rows = []
-        self.sub_frame_cols = [[],[],[],[],[],[]]
-
-        photo = tk.PhotoImage(file=Score.colours['white'])
-
+        self.name = 'shapearea'
+        self.sub_frames = []
+        for row in range(7):
+            self.sub_frames.append(tk.Frame(self, background="black"))
+        self.blocks = []
+        j=0
+        for row in range(7):
+            for column in range(3):
+                block = PlayArea(self.sub_frames[row], rows=5, columns=5,
+                    colour_set=Shapes.colours1, pad=0)
+                block.name = 'sub_shapearea'
+                block.selected = False
+                block.shape_number = j
+                block.colour_squares('blue', Shapes.shape_map[j], 0, 0)
+                block.configure(highlightthickness=3)
+                block.pack(side='left')
+                self.blocks.append(block)
+                j+=1
+            self.sub_frames[row].pack(side='top')
+        self.blocks[0].configure(highlightbackground="yellow")
+        self.blocks[0].selected = True
+        self.pack(side="bottom")
         parent.bind("<Button-1>", self.get_shape_from_frame)
         parent.bind("<Button-2>", self.rotate_shape_in_frame)
         parent.bind("<Button-3>", self.flip_shape_in_frame)
 
-        for x in range(5):
-            self.sub_frame_rows.append(tk.Frame(self.frame, background="black"))
-            for y in range(5):
-                self.sub_frame_cols[x].append(tk.Frame(self.sub_frame_rows[x],
-                    background="gray40", borderwidth=1))
-                for row in range(6):
-                    for column in range(5):
-                        entry = tk.Label(self.sub_frame_cols[x][y],
-                            borderwidth=0, image=photo)
-                        entry.photo = photo
-                        entry.grid(row=row, column=column, sticky="NSEW")
-                self.sub_frame_cols[x][y].pack(side='left')
-            self.sub_frame_rows[x].pack(side='top')
-
-        map_index = 1
-        for x in range(5):
-            for y in range(5):
-                if map_index < 22:
-                    self.colour_squares('blue', Shapes.shape_map[map_index], x, y)
-                    map_index+=1
-
-        self.frame.pack(side="bottom")
-
-    def colour_squares(self, colour, shape, x, y):
-        photo = tk.PhotoImage(file=Score.colours[colour])
-        numrows = len(shape)
-        numcols = len(shape[0])
-
-        for row in range(numrows):
-            for column in range(numcols):
-                if (shape[row][column]):
-                    entry = tk.Label(self.sub_frame_cols[x][y],
-                        borderwidth=0, image=photo)
-                    entry.photo = photo
-                    entry.grid(row=row, column=column)
-
-    def clear_squares(self, x, y):
-        photo = tk.PhotoImage(file=Score.colours['white'])
-        numrows = 5
-        numcols = 5
-
-        for row in range(numrows):
-            for column in range(numcols):
-                entry = tk.Label(self.sub_frame_cols[x][y],
-                    borderwidth=0, image=photo)
-                entry.photo = photo
-                entry.grid(row=row, column=column)
+    def change_frame_selection(self, frame):
+        for b in self.blocks:
+            if b.selected is True:
+                b.selected = False
+                b.configure(highlightbackground="white")
+            if b == frame:
+                b.selected = True
+                b.configure(highlightbackground="yellow")
 
     def get_shape_from_frame(self, event):
         try:
             grid_info = event.widget.grid_info()
-        except (AttributeError) as e:
+            frame = grid_info['in']
+        except (AttributeError, KeyError) as e:
             return None
-        frame = grid_info['in']
-        for f in self.sub_frame_cols:
-            for ff in f:
-                if ff == frame:
-                    print self.sub_frame_cols.index(f),f.index(ff)
-                    return self.sub_frame_cols.index(f),f.index(ff)
+        for b in self.blocks:
+            if b == frame:
+                self.change_frame_selection(frame)
 
     def rotate_shape_in_frame(self, event):
         blue_shapes = Shapes()
         try:
             grid_info = event.widget.grid_info()
-        except (AttributeError) as e:
-            pass
-        frame = grid_info['in']
-        map_index = 1
-        x = 0
-        for f in self.sub_frame_cols:
-            y = 0
-            for ff in f:
-                if ff == frame and map_index < 22:
-                    self.clear_squares(x, y)
-                    blue_shapes.rotate_shape(map_index)
-                    self.colour_squares('blue', blue_shapes.shape_map[map_index], x, y)
-                map_index+=1
-                y+=1
-            x+=1
+            frame = grid_info['in']
+        except (AttributeError, KeyError) as e:
+            return None
+        for b in self.blocks:
+            if b == frame:
+                self.change_frame_selection(frame)
+                b.clear_squares(blue_shapes.shape_map[b.shape_number])
+                blue_shapes.rotate_shape(b.shape_number)
+                b.colour_squares('blue', blue_shapes.shape_map[b.shape_number],
+                    0, 0)
 
     def flip_shape_in_frame(self, event):
         blue_shapes = Shapes()
         try:
             grid_info = event.widget.grid_info()
-        except (AttributeError) as e:
-            pass
-        frame = grid_info['in']
-        map_index = 1
-        x = 0
-        for f in self.sub_frame_cols:
-            y = 0
-            for ff in f:
-                if ff == frame and map_index < 22:
-                    self.clear_squares(x, y)
-                    blue_shapes.flip_shape(map_index)
-                    self.colour_squares('blue', blue_shapes.shape_map[map_index], x, y)
-                map_index+=1
-                y+=1
-            x+=1
+            frame = grid_info['in']
+        except (AttributeError, KeyError) as e:
+            return None
+        for b in self.blocks:
+            if b == frame:
+                self.change_frame_selection(frame)
+                b.clear_squares(blue_shapes.shape_map[b.shape_number])
+                blue_shapes.flip_shape(b.shape_number)
+                b.colour_squares('blue', blue_shapes.shape_map[b.shape_number],
+                    0, 0)
+
+class Square(tk.Label):
+    '''
+    This class is a single square in the grid.
+    '''
+
+    def __init__(self, parent, image, row, column):
+        tk.Label.__init__(self, parent, borderwidth=0, image=image)
+        self.parent = parent
+        self.name = 'square'
+        self.row = row
+        self.column = column
+        self.colour = 'white'
+        self.true_colour = 'white'
+        self.captured = False
