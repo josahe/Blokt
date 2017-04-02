@@ -1,3 +1,15 @@
-Blokus style game under early development.
+Blokus clone written in Python 3.6 (requires TkVersion 8.5 or later)
 
-Player 2 has entered the game.
+Invoke 4 player game,
+ $>python3 Blokt.py
+
+ Invoke 2 player game,
+  $>python3 Blokt.py --two-player
+
+Select shape with left-click.
+Rotate shape clockwise with middle-click.
+Flip shape vertically with right-click.
+Place shape with left-click.
+
+Coming up next,
+ + Computer AI

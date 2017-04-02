@@ -5,13 +5,14 @@ class Players(object):
     is, and communicates with the Board class'''
 
     def __init__(self, number_of_players=4):
+        self.number_of_players = number_of_players
         self._players = []
-        if (number_of_players >= 2):
+        if (self.number_of_players >= 2):
             self._players.append(Player(name='player1', colour='blue',
                 shapes=Shapes()))
             self._players.append(Player(name='player2', colour='green',
                 shapes=Shapes()))
-        if (number_of_players == 4):
+        if (self.number_of_players == 4):
             self._players.append(Player(name='player3', colour='red',
                 shapes=Shapes()))
             self._players.append(Player(name='player4', colour='yellow',
@@ -21,22 +22,31 @@ class Players(object):
 
     def update_current_player(self):
         self.current_player_index += 1
-        if self.current_player_index > 3:
+        if self.current_player_index > (self.number_of_players-1):
             self.current_player_index = 0
         self.current_player = self._players[self.current_player_index]
 
     def end_turn(self):
-        #update score
         self.current_player.score += self.current_player.shapes.current_shape.value
-        #disable used shape
         self.current_player.shapes.current_shape.used = True
-        #select next available shape
-        while self.current_player.shapes.current_shape.used is not False:
+        while self.current_player.shapes.current_shape.used is True:
+            if self.current_player.shapes.all_shapes_used() is True:
+                self.current_player.eliminate()
+                break
             self.current_player.shapes.update_current_shape()
 
     def start_turn(self):
-        #select next player
-        self.update_current_player()
+        if self.current_player.out is True:
+            temp_player = self.current_player
+            self.update_current_player()
+        else:
+            self.update_current_player()
+            temp_player = self.current_player
+        while self.current_player.out is True:
+            self.update_current_player()
+            if self.current_player == temp_player:
+                return False
+        return True
 
     def print_score(self):
         for p in self._players:
@@ -52,9 +62,13 @@ class Player(object):
         self.shapes = shapes
         self.shapes.set_colour(self.colour)
         self.score = 0
+        self.out = False
 
     def update_score(self, new_score):
         self.score = new_score
 
     def get_score(self):
         return self.score
+
+    def eliminate(self):
+        self.out = True

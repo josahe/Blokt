@@ -11,37 +11,76 @@ image_assets_40x40 = {'white'  : "assets/white_square_40x40.ppm",
                       'red'    : "assets/red_square_40x40.ppm",
                       'yellow' : "assets/yellow_square_40x40.ppm",
                       'green'  : "assets/green_square_40x40.ppm",
-                      'blue'   : "assets/blue_square_40x40.ppm"}
+                      'blue'   : "assets/blue_square_40x40.ppm",
+                      'start'  : "assets/start_square_40x40.ppm"}
 
 class PlayArea(tk.Frame):
     '''
-    This class renders a 20x20 play area and packs into a parent window.
+    This class renders a 20x20 play area.
     '''
 
-    def __init__(self, parent, rows=20, columns=20,
+    def __init__(self, parent, number_of_players,
         colour_set=image_assets_40x40, pad=1):
         tk.Frame.__init__(self, parent, background="black")
         self.parent = parent
         self.name = 'playarea'
         self.colour_set = colour_set
-        photo = tk.PhotoImage(file=self.colour_set['white'])
         self.squares = []
-        for row in range(rows):
+        self.number_of_players = number_of_players
+        if self.number_of_players == 2:
+            self.rows = 14
+            self.columns = 14
+            self.edge = 13
+        elif self.number_of_players == 4:
+            self.rows = 20
+            self.columns = 20
+            self.edge = 19
+        elif self.number_of_players == 0:
+            self.rows = 5
+            self.columns = 5
+            self.edge = 0
+        else:
+            raise ValueError
+            return None
+        for row in range(self.rows):
             current_row = []
-            for column in range(columns):
-                sqr = Square(self, image=photo, row=row, column=column)
-                sqr.photo = photo
+            for column in range(self.columns):
+                if self.number_of_players == 2:
+                    if ((row==4 and column==self.edge-4)
+                    or  (row==self.edge-4 and column==4)):
+                        photo = tk.PhotoImage(file=self.colour_set['start'])
+                        sqr = Square(self, image=photo, row=row, column=column)
+                        sqr.photo = photo
+                        sqr.true_colour = 'start'
+                    else:
+                        photo = tk.PhotoImage(file=self.colour_set['white'])
+                        sqr = Square(self, image=photo, row=row, column=column)
+                        sqr.photo = photo
+                elif self.number_of_players == 4:
+                    if ((row==0 and column==0)
+                    or  (row==0 and column==self.edge)
+                    or  (row==self.edge and column==0)
+                    or  (row==self.edge and column==self.edge)):
+                        photo = tk.PhotoImage(file=self.colour_set['start'])
+                        sqr = Square(self, image=photo, row=row, column=column)
+                        sqr.photo = photo
+                        sqr.true_colour = 'start'
+                    else:
+                        photo = tk.PhotoImage(file=self.colour_set['white'])
+                        sqr = Square(self, image=photo, row=row, column=column)
+                        sqr.photo = photo
+                else:
+                    photo = tk.PhotoImage(file=self.colour_set['white'])
+                    sqr = Square(self, image=photo, row=row, column=column)
+                    sqr.photo = photo
                 sqr.grid(row=row, column=column, sticky="NSEW", padx=pad,
                     pady=pad)
                 current_row.append(sqr)
             self.squares.append(current_row)
-        self.pack(side="left")
 
     def colour_squares(self, colour, shape, r_offset=0, c_offset=0):
-        numrows = len(shape)
-        numcols = len(shape[0])
-        for row in range(numrows):
-            for column in range(numcols):
+        for row in range(len(shape)):
+            for column in range(len(shape[0])):
                 if (shape[row][column]):
                     try:
                         sqr = self.squares[row+r_offset][column+c_offset]
@@ -70,10 +109,8 @@ class PlayArea(tk.Frame):
     def place_shape_on_board(self, grid_info, shapes):
         (r_offset, c_offset) = self.get_grid_coordinates(grid_info)
         shape = shapes.current_shape.matrix
-        numrows = len(shape)
-        numcols = len(shape[0])
-        for row in range(numrows):
-            for column in range(numcols):
+        for row in range(len(shape)):
+            for column in range(len(shape[0])):
                 if (shape[row][column]):
                     try:
                         sqr = self.squares[row+r_offset][column+c_offset]
@@ -88,42 +125,58 @@ class PlayArea(tk.Frame):
         shapes = current_player.shapes
         shape = shapes.current_shape.matrix
         score = current_player.score
-        numrows = len(shape)
-        numcols = len(shape[0])
         diagonally_adjacent = False
-        corner_square = False
-        for row in range(numrows):
-            for column in range(numcols):
+        starting_square = False
+        for row in range(len(shape)):
+            for column in range(len(shape[0])):
                 if (shape[row][column]):
-                    try:
+                    # --- OVERLAP/CORNER ---
+                    if row+r_offset in range(self.edge+1) and column+c_offset in range(self.edge+1):
                         if self.squares[row+r_offset][column+c_offset].captured is True:
                             return True,'overlap'
-                        if ((row+r_offset==0 and column+c_offset==0) # REVISIT must change to size of board
-                        or   (row+r_offset==0 and column+c_offset==19)
-                        or   (row+r_offset==19 and column+c_offset==0)
-                        or   (row+r_offset==19 and column+c_offset==19)):
-                            corner_square = True
-                    except IndexError as e:
+                        if self.number_of_players == 2:
+                            if ((row+r_offset==4 and column+c_offset==self.edge-4)
+                            or  (row+r_offset==self.edge-4 and column+c_offset==4)):
+                                starting_square = True
+                        else:
+                            if ((row+r_offset==0 and column+c_offset==0)
+                            or  (row+r_offset==0 and column+c_offset==self.edge)
+                            or  (row+r_offset==self.edge and column+c_offset==0)
+                            or  (row+r_offset==self.edge and column+c_offset==self.edge)):
+                                starting_square = True
+                    else:
                         return True,'index'
-                    try:
-                        if (shapes.colour == self.squares[row+r_offset-1][column+c_offset].true_colour
-                        or  shapes.colour == self.squares[row+r_offset+1][column+c_offset].true_colour
-                        or  shapes.colour == self.squares[row+r_offset][column+c_offset-1].true_colour
-                        or  shapes.colour == self.squares[row+r_offset][column+c_offset+1].true_colour):
+                    # --- ADJACENT ---
+                    if row+r_offset-1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset-1][column+c_offset].true_colour:
                             return True,'adjacent'
-                    except IndexError as e:
-                        pass
-                    try:
-                        if (shapes.colour == self.squares[row+r_offset-1][column+c_offset-1].true_colour
-                        or  shapes.colour == self.squares[row+r_offset-1][column+c_offset+1].true_colour
-                        or  shapes.colour == self.squares[row+r_offset+1][column+c_offset-1].true_colour
-                        or  shapes.colour == self.squares[row+r_offset+1][column+c_offset+1].true_colour):
+                    if row+r_offset+1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset+1][column+c_offset].true_colour:
+                            return True,'adjacent'
+                    if column+c_offset-1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset][column+c_offset-1].true_colour:
+                            return True,'adjacent'
+                    if column+c_offset+1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset][column+c_offset+1].true_colour:
+                            return True,'adjacent'
+                    # --- DIAGONAL ---
+                    if row+r_offset-1 in range(self.edge+1) and column+c_offset-1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset-1][column+c_offset-1].true_colour:
                             diagonally_adjacent = True
-                    except IndexError as e:
-                        pass
+                    if row+r_offset-1 in range(self.edge+1) and column+c_offset+1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset-1][column+c_offset+1].true_colour:
+                            diagonally_adjacent = True
+                    if row+r_offset+1 in range(self.edge+1) and column+c_offset-1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset+1][column+c_offset-1].true_colour:
+                            diagonally_adjacent = True
+                    if row+r_offset+1 in range(self.edge+1) and column+c_offset+1 in range(self.edge+1):
+                        if shapes.colour == self.squares[row+r_offset+1][column+c_offset+1].true_colour:
+                            diagonally_adjacent = True
+        # --- CORNER ---
         if score == 0:
-            if corner_square is False:
+            if starting_square is False:
                 return True,'corner'
+        # --- DIAGONAL ---
         else:
             if diagonally_adjacent is False:
                 return True,'diagonal'
@@ -131,35 +184,29 @@ class PlayArea(tk.Frame):
 
 class ShapeArea(tk.Frame):
     '''
-    This class renders a 7x3 display of available shapes and packs into a parent
-    window.
+    This class renders a 7x3 display of available shapes.
     '''
 
     def __init__(self, parent):
         tk.Frame.__init__(self, parent, background="black")
         self.parent = parent
         self.name = 'shapearea'
-        self.sub_frames = []
-        for row in range(7):
-            self.sub_frames.append(tk.Frame(self, background="black"))
         self.blocks = []
         j=0
         for row in range(7):
             for column in range(3):
-                block = PlayArea(self.sub_frames[row], rows=5, columns=5,
+                block = PlayArea(self, number_of_players=0,
                     colour_set=image_assets_10x10, pad=0)
                 block.name = 'sub_shapearea'
                 block.shape_number = j
                 block.colour_squares('white',[[0]])
                 block.configure(highlightthickness=2,
                     highlightbackground='gray')
-                block.pack(side='left')
+                block.grid(row=row, column=column)
                 self.blocks.append(block)
                 j+=1
-            self.sub_frames[row].pack(side='top')
         self.selected_block = self.blocks[0]
         self.selected_block.configure(highlightbackground="yellow")
-        self.pack(side="bottom")
 
     def add_player_shapes(self, shapes):
         j=0
@@ -205,11 +252,32 @@ class ShapeArea(tk.Frame):
 
 class ScoreArea(tk.Frame):
     '''
-    This class renders a score area and packs into a parent window.
+    This class renders a score area.
     '''
 
-    def __init__(self, parent):
-        tk.Frame.__init__(self, parent, background="black")
+    def __init__(self, parent, players, eliminate_player):
+        tk.Frame.__init__(self, parent)
+        self.parent = parent
+        self.name = 'scorearea'
+        self.players = players
+        self.player_score_vars = []
+        self.player_name_labels = []
+        self.player_score_labels = []
+        title = tk.Label(self, text="Scores:").grid(row=0, column=0)
+        for i, p in enumerate(self.players._players):
+            self.player_score_vars.append(tk.StringVar())
+            self.player_name_labels.append(tk.Label(self, text=(p.name,"-")))
+            self.player_score_labels.append(tk.Label(self,
+                textvariable=self.player_score_vars[i]))
+            self.player_name_labels[i].grid(row=i+1, column=1)
+            self.player_score_labels[i].grid(row=i+1, column=2)
+            self.player_score_vars[i].set(p.score)
+        button = tk.Button(self, text="I'm out! :(",
+            command=eliminate_player).grid(row=5, column=2)
+
+    def update_score(self, players):
+        for i, p in enumerate(players._players):
+            self.player_score_vars[i].set(p.score)
 
 class Square(tk.Label):
     '''

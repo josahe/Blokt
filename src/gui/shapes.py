@@ -60,3 +60,12 @@ class Shapes(object):
 
     def set_colour(self, colour):
         self.colour = colour
+
+    def all_shapes_used(self):
+        num_shapes_used = 0
+        for i in self.shape_map:
+            if self.shape_map[i].used is True:
+                num_shapes_used += 1
+        if num_shapes_used == 21:
+            return True
+        return False
