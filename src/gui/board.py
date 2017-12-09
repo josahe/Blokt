@@ -7,12 +7,12 @@ class Board(tk.Frame):
     This class is the board view of the game.
     '''
 
-    def __init__(self, parent, players, number_of_players=4):
+    def __init__(self, parent, players):
         tk.Frame.__init__(self, parent, background="black")
         self.parent = parent
         self.name = 'board'
         self.players = players
-        self.number_of_players = number_of_players
+        self.number_of_players = self.players.number_of_players
         self.playarea = PlayArea(parent, number_of_players=self.number_of_players)
         self.scorearea = ScoreArea(parent, self.players, self.eliminate_player)
         self.shapearea = ShapeArea(parent)
@@ -25,16 +25,22 @@ class Board(tk.Frame):
         self.playarea.grid(row=0, column=0, rowspan=2)
         self.scorearea.grid(row=0, column=1, sticky='NW')
         self.shapearea.grid(row=1, column=1, sticky='S')
+        self.previous_grid_info = None
+        self.previous_frame = None
+        self.previous_shape = None
 
     def do_event_enter(self, event):
         (grid_info, frame) = self.extract_from_event(event)
         if frame is not None and frame.name == 'playarea':
+            if self.previous_frame is not None:
+                self.colour_shape_on_board(self.previous_grid_info, self.previous_frame, 'leave')
             self.colour_shape_on_board(grid_info, frame, 'enter')
 
     def do_event_leave(self, event):
         (grid_info, frame) = self.extract_from_event(event)
         if frame is not None and frame.name == 'playarea':
-            self.colour_shape_on_board(grid_info, frame, 'leave')
+            self.previous_grid_info, self.previous_frame = grid_info, frame
+            self.previous_shape = self.players.current_player.shapes.current_shape
 
     def do_event_button_1(self, event):
         (grid_info, frame) = self.extract_from_event(event)
@@ -100,7 +106,7 @@ class Board(tk.Frame):
                 r_offset, c_offset)
         else: # event_type == 'leave':
             self.playarea.clear_squares(
-                self.players.current_player.shapes.current_shape.matrix,
+                self.previous_shape.matrix,
                 r_offset, c_offset)
 
     def rulebook(self, grid_info):
@@ -109,28 +115,33 @@ class Board(tk.Frame):
         if is_illegal is True:
             if reason == 'overlap':
                 messagebox.showwarning(
-                    "Illegal move",
-                    "Make sure your piece does not overlap with an existing piece"
+                    title="Illegal move",
+                    message="Your piece is overlapping with an existing piece",
+                    parent=self.playarea
                 )
             elif reason == 'adjacent':
                 messagebox.showwarning(
-                    "Illegal move",
-                    "Make sure your piece is not adjacent to an existing piece"
+                    title="Illegal move",
+                    message="Your piece is adjacent to an existing piece",
+                    parent=self.playarea
                 )
             elif reason == 'index':
                 messagebox.showwarning(
-                    "Illegal move",
-                    "Make sure your piece lies within the boundary of the board"
+                    title="Illegal move",
+                    message="Your piece is not laying within the boundary of the board",
+                    parent=self.playarea
                 )
             elif reason == 'diagonal':
                 messagebox.showwarning(
-                    "Illegal move",
-                    "Make sure your piece diagonally connects to an existing piece"
+                    title="Illegal move",
+                    message="Your piece is not diagonally connecting to an existing piece",
+                    parent=self.playarea
                 )
             elif reason == 'corner':
                 messagebox.showwarning(
-                    "Illegal move",
-                    "Make sure your first piece connects to a corner square"
+                    title="Illegal move",
+                    message="Your first piece must connect to a starting square",
+                    parent=self.playarea
                 )
             return 'broken'
         return 'satisfied'
@@ -149,6 +160,7 @@ class Board(tk.Frame):
         return False
 
     def eliminate_player(self):
+        self.shapearea.remove_player_shapes(self.players.current_player.shapes)
         self.players.current_player.eliminate()
         if self.start_next_players_turn() is False:
             self.game_over()
@@ -159,7 +171,7 @@ class Board(tk.Frame):
             winner = "It's a draw!"
         else:
             winner = "The winner is {0}".format(self.players._players[scores.index(max(scores))].name)
-        messagebox.showinfo("Game over", winner)
+        messagebox.showinfo("Game over", winner, parent=self.playarea)
 
         # close app / start new game
         self.parent.quit()

@@ -1,10 +1,10 @@
 Blokus clone written in Python 3.6 (requires TkVersion 8.5 or later)
 
 Invoke 4 player game,
-$>python3 Blokt.py
+$>python3 Blokus.py
 
 Invoke 2 player game,
-$>python3 Blokt.py --two-player
+$>python3 Blokus.py --two-player
 
 Select shape with left-click.
 Rotate shape clockwise with middle-click.

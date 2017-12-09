@@ -1,4 +1,4 @@
-from src.gui.shapes import Shapes
+from src.backend.shapes import Shapes
 
 class Players(object):
     '''This class keeps a record of every player object, manages whose turn it

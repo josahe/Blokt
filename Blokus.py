@@ -15,9 +15,7 @@ def main(argv):
     window = Tk()
     window.resizable(width=False, height=False)
     window.wm_title("Blokt")
-    board = Board(window,
-        Players(number_of_players=number_of_players),
-        number_of_players=number_of_players)
+    board = Board(window, Players(number_of_players=number_of_players))
     window.mainloop()
 
 if __name__ == "__main__":
