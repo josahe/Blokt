@@ -1,8 +1,6 @@
 class Shape(object):
+    '''This class describes a single shape.
     '''
-    This class describes a single shape.
-    '''
-
     def __init__(self, matrix):
         self.matrix = matrix
         self.used = False
@@ -11,10 +9,8 @@ class Shape(object):
             self.value += m.count(1)
 
 class Shapes(object):
+    '''This class describes a user's shapes.
     '''
-    This class describes a user's shapes.
-    '''
-
     def __init__(self):
         self.shape_map = {0:  Shape([[1]]),
                           1:  Shape([[1], [1]]),
@@ -38,25 +34,44 @@ class Shapes(object):
                           19: Shape([[1, 0, 0], [1, 1, 1], [0, 1, 0]]),
                           20: Shape([[0, 1, 0], [1, 1, 1], [0, 1, 0]])}
         self.name = 'shapes'
-        self.current_shape_index = 0
-        self.current_shape = self.shape_map[self.current_shape_index]
+        self.active_shape_index = 20
+        self.active_shape = self.shape_map[self.active_shape_index]
 
-    def update_current_shape(self, next_shape_index=None):
-        if next_shape_index is None:
-            self.current_shape_index += 1
-            if self.current_shape_index == 21:
-                self.current_shape_index = 0
+    def update_active_shape(self, next_shape_index=None):
+        if next_shape_index == 'next':
+            self.active_shape_index += 1
+            if self.active_shape_index > 20:
+                self.active_shape_index = 0
+        elif next_shape_index == 'previous':
+            self.active_shape_index -= 1
+            if self.active_shape_index < 0:
+                self.active_shape_index = 20
         else:
-            self.current_shape_index = next_shape_index
-        self.current_shape = self.shape_map[self.current_shape_index]
+            self.active_shape_index = next_shape_index
+        self.active_shape = self.shape_map[self.active_shape_index]
 
     def rotate_shape(self):
-        self.current_shape.matrix = list(zip(*self.current_shape.matrix[::-1]))
-        self.current_shape.matrix = list(map(list, self.current_shape.matrix))
+        self.active_shape.matrix = list(zip(*self.active_shape.matrix[::-1]))
+        self.active_shape.matrix = list(map(list, self.active_shape.matrix))
+
+    def rotate_right(self):
+        self.rotate_shape()
+
+    def rotate_left(self):
+        for i in range(3):
+            self.rotate_shape()
 
     def flip_shape(self):
-        for x in self.current_shape.matrix:
+        for x in self.active_shape.matrix:
             x.reverse()
+
+    def flip_horizontal(self):
+        self.flip_shape()
+
+    def flip_vertical(self):
+        self.rotate_right()
+        self.flip_horizontal()
+        self.rotate_left()
 
     def set_colour(self, colour):
         self.colour = colour

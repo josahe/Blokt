@@ -15,10 +15,8 @@ image_assets_40x40 = {'white'  : "assets/white_square_40x40.ppm",
                       'start'  : "assets/start_square_40x40.ppm"}
 
 class PlayArea(tk.Frame):
+    '''This class renders a 20x20 play area.
     '''
-    This class renders a 20x20 play area.
-    '''
-
     def __init__(self, parent, number_of_players,
         colour_set=image_assets_40x40, pad=1):
         tk.Frame.__init__(self, parent, background="black")
@@ -108,7 +106,7 @@ class PlayArea(tk.Frame):
 
     def place_shape_on_board(self, grid_info, shapes):
         (r_offset, c_offset) = self.get_grid_coordinates(grid_info)
-        shape = shapes.current_shape.matrix
+        shape = shapes.active_shape.matrix
         for row in range(len(shape)):
             for column in range(len(shape[0])):
                 if (shape[row][column]):
@@ -120,11 +118,11 @@ class PlayArea(tk.Frame):
                     except IndexError as e:
                         pass
 
-    def check_move(self, grid_info, current_player):
+    def check_move(self, grid_info, active_player):
         (r_offset, c_offset) = self.get_grid_coordinates(grid_info)
-        shapes = current_player.shapes
-        shape = shapes.current_shape.matrix
-        score = current_player.score
+        shapes = active_player.shapes
+        shape = shapes.active_shape.matrix
+        score = active_player.score
         diagonally_adjacent = False
         starting_square = False
         for row in range(len(shape)):
@@ -183,10 +181,8 @@ class PlayArea(tk.Frame):
         return False,'okay'
 
 class ShapeArea(tk.Frame):
+    '''This class renders a 7x3 display of available shapes.
     '''
-    This class renders a 7x3 display of available shapes.
-    '''
-
     def __init__(self, parent):
         tk.Frame.__init__(self, parent, background="black")
         self.parent = parent
@@ -205,7 +201,7 @@ class ShapeArea(tk.Frame):
                 block.grid(row=row, column=column)
                 self.blocks.append(block)
                 j+=1
-        self.selected_block = self.blocks[0]
+        self.selected_block = self.blocks[20]
         self.selected_block.configure(highlightbackground="yellow")
 
     def add_player_shapes(self, shapes):
@@ -230,31 +226,47 @@ class ShapeArea(tk.Frame):
                 self.blocks[j] = block
                 j+=1
 
-    def change_frame_selection(self, frame):
+    def change_shape_with_frame(self, frame):
         self.selected_block.configure(highlightbackground="gray")
         self.selected_block = frame
         self.selected_block.configure(highlightbackground="yellow")
 
+    def choose_shape_with_action(self, action):
+        if action == 'next':
+            if self.active_shape_index() == 20:
+                index = 0
+            else:
+                index = self.active_shape_index() + 1
+        elif action == 'previous':
+            if self.active_shape_index() == 0:
+                index = 20
+            else:
+                index = self.active_shape_index() - 1
+        self.selected_block.configure(highlightbackground="gray")
+        self.selected_block = self.blocks[index]
+        self.selected_block.configure(highlightbackground="yellow")
 
-    def get_selected_shape_index(self):
+    def active_shape_index(self):
         return self.selected_block.shape_number
 
     def transform_shape(self, frame, shapes, transform):
-        self.change_frame_selection(frame)
+        self.change_shape_with_frame(frame)
         self.selected_block.clear_squares(
-            shapes.current_shape.matrix)
-        if transform == 'rotate':
-            shapes.rotate_shape()
-        elif transform == 'flip':
-            shapes.flip_shape()
+            shapes.active_shape.matrix)
+        if transform == 'rotate right':
+            shapes.rotate_right()
+        elif transform == 'rotate left':
+            shapes.rotate_left()
+        elif transform == 'flip horizontal':
+            shapes.flip_horizontal()
+        elif transform == 'flip vertical':
+            shapes.flip_vertical()
         self.selected_block.colour_squares(shapes.colour,
-            shapes.current_shape.matrix)
+            shapes.active_shape.matrix)
 
 class ScoreArea(tk.Frame):
+    '''This class renders a score area.
     '''
-    This class renders a score area.
-    '''
-
     def __init__(self, parent, players, eliminate_player):
         tk.Frame.__init__(self, parent)
         self.parent = parent
@@ -280,10 +292,8 @@ class ScoreArea(tk.Frame):
             self.player_score_vars[i].set(p.score)
 
 class Square(tk.Label):
+    '''This class is a single square on the board.
     '''
-    This class is a single square on the board.
-    '''
-
     def __init__(self, parent, image, row, column):
         tk.Label.__init__(self, parent, borderwidth=0, image=image)
         self.parent = parent
